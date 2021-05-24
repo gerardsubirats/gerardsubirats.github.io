@@ -58,6 +58,9 @@ var Inici = new Phaser.Class({
 
         iniciarJoc: function () {
 
+            score = 0;
+            currentHealth = 3;
+
             game.scene.stop('inici');
 
             let primera = game.scene.getScene('primera');
@@ -66,6 +69,11 @@ var Inici = new Phaser.Class({
                 game.scene.add('primera', Primera);
             }
 
+            let segona = game.scene.getScene('segona');
+
+            if (segona == null || segona == undefined) {
+                game.scene.add('segona', Segona);
+            }
 
             game.scene.start("primera");
 
@@ -114,10 +122,11 @@ var Primera = new Phaser.Class({
             backgroundImage.setScale(10, 10);
             const plataformes = map.createStaticLayer('Plataformes', tileset, 0, 0);
             const limits = map.createStaticLayer('Limits', tileset, 0, 0);
-            const door = map.createStaticLayer('Final', doorset, 0, -13);
+            const door = map.createStaticLayer('Final', doorset, 0, -17);
             map.createStaticLayer('Ambient', tileset, 0, 0);
             plataformes.setCollisionByExclusion(-1, true);
             limits.setCollisionByExclusion(-1, true);
+            door.setCollisionByExclusion(-1, true);
 
             this.cameras.main.setBounds(0, 0, 1088, 864);
 
@@ -231,7 +240,7 @@ var Primera = new Phaser.Class({
 
             this.colisioCoinsEnDude = this.physics.add.overlap(this.dude , coins, this.collectCoins, null, this);
 
-            this.physics.add.collider(this.dude, door, this.completed, null, this);
+            this.colisioDoor = this.physics.add.collider(this.dude, door, this.completed, null, this);
 
         },
 
@@ -326,8 +335,7 @@ var Primera = new Phaser.Class({
             vidaText.setText('Vida: ' + currentHealth);    
             // Si no te vida tornem al Menu
             if (currentHealth === 0)
-            {              
-                currentHealth = 3;
+            {
                 game.scene.remove('primera');
                 game.scene.start("inici", { 
                     "missatge": "Game Over - La Puntuació Final es: " + score
@@ -373,8 +381,314 @@ var Primera = new Phaser.Class({
             bar.scaleX = percentage/100;
         },
         completed: function() {
-
+            this.colisioDoor.destroy();
+            game.scene.remove('primera');
+            game.scene.start("segona");
         },
+
+})
+
+var Segona = new Phaser.Class({
+
+    Extends: Phaser.Scene,
+
+    initialize:
+
+        function Segona ()
+        {
+            Phaser.Scene.call(this, { key: 'segona', active: false });
+        },
+
+    preload: function () {
+        this.load.image('door', 'assets/images/Door.png');
+        this.load.image('spike', 'assets/images/Spike.png');
+        this.load.spritesheet('coin2', 'assets/images/coin2.png', { frameWidth: 16, frameHeight: 16 });
+        this.load.spritesheet('dude2',
+            'assets/images/dude2.png',
+            { frameWidth: 32, frameHeight: 32 }
+        );
+        this.load.image('tiles2', 'assets/tilesets/tileset2.png');
+        this.load.image('tilesLimits', 'assets/tilesets/tileset3.png');
+        this.load.image('background', 'assets/images/sky.png');
+        this.load.tilemapTiledJSON('map2', 'assets/tilemaps/Mapa2.json');
+        this.load.audio('collectCoinsAudio', 'assets/audio/coinCollect.mp3');
+        this.load.audio('death', 'assets/audio/death.mp3');
+    },
+
+    create: function ()
+    {
+        const map = this.make.tilemap({ key: 'map2' });
+        const doorset = map.addTilesetImage('Door', 'door');
+        const tileset = map.addTilesetImage('tileset2', 'tiles2');
+        const tilesetLimits = map.addTilesetImage('tileset3', 'tilesLimits');
+        const backgroundImage = this.add.image(0, 0,'background').setOrigin(0, 0);
+        backgroundImage.setScale(10, 10);
+        const plataformes = map.createStaticLayer('Plataformes', tileset, 0, 0);
+        const limits = map.createStaticLayer('Limits', tilesetLimits, 0, 0);
+        const door = map.createStaticLayer('Final', doorset, 0, -13);
+        map.createStaticLayer('Ambient', tileset, 0, 0);
+        plataformes.setCollisionByExclusion(-1, true);
+        limits.setCollisionByExclusion(-1, true);
+        door.setCollisionByExclusion(-1, true);
+
+        this.cameras.main.setBounds(0, 0, 1088, 864);
+
+        this.dude = this.physics.add.sprite(83, 607, 'dude2');
+        this.dude.setBounce(0.1); // our dude will bounce from items
+        this.dude.setCollideWorldBounds(true); // don't go out of the map
+        this.physics.add.collider(this.dude, plataformes);
+
+        // Vida
+
+        this.vida = this.makeBar(210,200,0x2ecc71);
+        this.setValue(this.vida,100);
+
+        // So
+
+        this.collectCoinsAudio = this.sound.add('collectCoinsAudio');
+        this.death = this.sound.add('death');
+
+        this.cameras.main.startFollow(this.dude, true, 0.09, 0.09);
+
+        this.cameras.main.setZoom(1.6);
+
+        // Animacions
+
+        this.anims.create({
+            key: 'left2',
+            frames: this.anims.generateFrameNumbers('dude2', { start: 0, end: 3 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'turn2',
+            frames: [ { key: 'dude2', frame: 6 } ],
+            frameRate: 20
+        });
+
+        this.anims.create({
+            key: 'right2',
+            frames: this.anims.generateFrameNumbers('dude2', { start: 5, end: 8 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'jump2',
+            frames: [ { key: 'dude2', frame: 9 } ],
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'coin2',
+            frames: this.anims.generateFrameNumbers('coin2', { start: 0, end: 3 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        // Events
+        this.cursors = this.input.keyboard.createCursorKeys();
+
+        // Create a sprite group for all spikes, set common properties to ensure that
+        // sprites in the group don't move via gravity or by dude collisions
+        this.spikes = this.physics.add.group({
+            allowGravity: false,
+            immovable: true
+        });
+
+        // Get the spikes from the object layer of our Tiled map. Phaser has a
+        // createFromObjects function to do so, but it creates sprites automatically
+        // for us. We want to manipulate the sprites a bit before we use them
+        const spikeObjects = map.getObjectLayer('EnemicsEstatics')['objects'];
+        spikeObjects.forEach(spikeObject => {
+            // Add new spikes to our sprite group
+            const spike = this.spikes.create(spikeObject.x, spikeObject.y - spikeObject.height, 'spike').setOrigin(0, 0);
+            // By default the sprite has loads of whitespace from the base image, we
+            // resize the sprite to reduce the amount of whitespace used by the sprite
+            // so collisions can be more precise
+            spike.body.setSize(spike.width, spike.height).setOffset(0, 0);
+        });
+
+        //  Some stars to collect, 12 in total, evenly spaced 70 pixels apart along the x axis
+        coins = this.physics.add.group({
+            key: 'coin2',
+            repeat: 11,
+            setXY: { x: 10, y: 10, stepX: 70 }
+        });
+
+        coins.children.iterate(function (child) {
+
+            //  Give each star a slightly different bounce
+            child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+
+            child.anims.play('coin2');
+
+        });
+
+        scoreText = this.add.text(210, 170, 'Puntuació: 0', { fontSize: '32px', fill: '#000' }).setScrollFactor(0);
+
+        vidaText = this.add.text(210, 200, 'Vida: 3', { font: '32px Courier', fill: '#000000' }).setScrollFactor(0);
+
+        vidaText.setText('Vida: ' + currentHealth);
+
+        // Colisions
+
+        this.physics.add.collider(this.dude, this.spikes, this.dudeHit, null, this);
+
+        this.physics.add.collider(this.dude, limits, this.dudeHit, null, this);
+
+        this.physics.add.collider(coins, plataformes);
+
+        this.colisioCoinsEnDude = this.physics.add.overlap(this.dude , coins, this.collectCoins, null, this);
+
+        this.physics.add.collider(this.dude, door, this.completed, null, this);
+
+    },
+
+    update: function ()
+    {
+
+        if (this.cursors.left.isDown)
+        {
+            this.dude.setVelocityX(-160);
+
+            this.dude.anims.play('left2', true);
+        }
+        else if (this.cursors.right.isDown)
+        {
+            this.dude.setVelocityX(160);
+
+            this.dude.anims.play('right2', true);
+        }
+        else
+        {
+            this.dude.setVelocityX(0);
+
+            this.dude.anims.play('turn2');
+        }
+
+        if (this.cursors.up.isDown && this.dude.body.touching.down)
+        {
+            this.dude.setVelocityY(-330);
+        }
+
+        if ((this.cursors.space.isDown || this.cursors.up.isDown) && this.dude.body.onFloor()) {
+            this.dude.setVelocityY(-350);
+            this.dude.play('jump2', true);
+        }
+
+    },
+
+    collectCoins: function (dude, coin)
+    {
+
+        // Iniciem el audio al agafar un coin
+        this.collectCoinsAudio.play();
+
+        this.physics.world.removeCollider(this.colisioCoinsEnDude);
+
+        var that = this;
+
+        this.add.tween({
+            y: coin.y - 20,
+            targets: coin,
+            ease: 'Exponential',
+            duration: 300,
+            onComplete: function () {
+                coin.disableBody(true, true);
+                that.colisioCoinsEnDude = that.physics.add.overlap(that.dude , coins, that.collectCoins, null, that);
+            },
+        });
+
+        //  Add and update the score
+        score += 10;
+        scoreText.setText('Puntuació: ' + score);
+
+        if (coins.countActive(true) === 0)
+        {
+            //  A new batch of stars to collect
+            coins.children.iterate(function (child) {
+
+                child.enableBody(true, child.x, 0, true, true);
+
+            });
+
+            var x = (dude.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+
+        }
+    },
+
+    /**
+     * dudeHit resets the dude's state when it dies from colliding with a spike
+     * @param {*} dude - dude sprite
+     * @param {*} spikedball - spike dude collided with
+     */
+    dudeHit: function (dude, spikedball) {
+
+        //Iniciem el audio al morir
+        this.death.play();
+        //Movem la camara al morir
+        this.cameras.main.shake(500, 0.01);
+        // Restem Vida
+        currentHealth--;
+        this.setValue(this.vida,currentHealth*25);
+        // Actualitzem el contador
+        vidaText.setText('Vida: ' + currentHealth);
+        // Si no te vida tornem al Menu
+        if (currentHealth === 0)
+        {
+            game.scene.remove('segona');
+            game.scene.start("inici", {
+                "missatge": "Game Over - La Puntuació Final es: " + score
+            });
+        }
+        // Set velocity back to 0
+        dude.setVelocity(0, 0);
+        // Put the dude back in its original position
+        dude.setX(83);
+        dude.setY(607);
+        // Use the default `idle` animation
+        dude.play('turn', true);
+        // Set the visibility to 0 i.e. hide the dude
+        dude.setAlpha(0);
+        // Add a tween that 'blinks' until the dude is gradually visible
+        let tw = this.tweens.add({
+            targets: dude,
+            alpha: 1,
+            duration: 200,
+            ease: 'Linear',
+            repeat: 5,
+        });
+    },
+    makeBar: function (x, y,color) {
+        //draw the bar
+        let bar = this.add.graphics().setScrollFactor(0);
+
+        //color the bar
+        bar.fillStyle(color, 1);
+
+        //fill the bar with a rectangle
+        bar.fillRect(0, 0, 200, 30);
+
+        //position the bar
+        bar.x = x;
+        bar.y = y;
+
+        //return the bar
+        return bar;
+    },
+    setValue: function(bar,percentage) {
+        //scale the bar
+        bar.scaleX = percentage/100;
+    },
+    completed: function() {
+        game.scene.remove('segona');
+        game.scene.start("inici", {
+            "missatge": "Joc Completat - La Puntuació Final es: " + score
+        });
+    },
 
 })
 
@@ -395,10 +709,10 @@ var config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 500 },
-            debug: true
+            debug: false
         }
     },
-    scene: [ Inici, Primera ]
+    scene: [ Inici, Primera, Segona ]
    
 };
 
